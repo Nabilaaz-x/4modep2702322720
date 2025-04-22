@@ -1,41 +1,48 @@
 import streamlit as st
 import pickle
-import gzip 
+import gzip
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-#load best model yang dicompress bcs ukuran filenya ke gedean
-with gzip.open('best_model_compressed.pkl.gz', 'rb') as file:
+# Load best model yang dicompress
+with gzip.open('/mnt/data/best_model_compressed.pkl.gz', 'rb') as file:
     best_model = pickle.load(file)
 
-#loadscaler n labelencoder
-with open('scaler.pkl', 'rb') as file:
+# Load scaler and label encoder
+with open('/mnt/data/scaler.pkl', 'rb') as file:
     scaler = pickle.load(file)
 
-with open('label_encoder.pkl', 'rb') as file:
+with open('/mnt/data/label_encoder.pkl', 'rb') as file:
     label_encoder = pickle.load(file)
 
-#preprocessing input data
+# Preprocessing input data
 def preprocess_input(input_data):
     input_data.fillna(input_data.select_dtypes(include=['float64', 'int64']).median(), inplace=True)
     for col in input_data.select_dtypes(include=['object']).columns:
         input_data[col].fillna(input_data[col].mode()[0], inplace=True)
 
-    input_data['type_of_meal_plan'] = label_encoder.transform(input_data['type_of_meal_plan'])
-    input_data['room_type_reserved'] = label_encoder.transform(input_data['room_type_reserved'])
-    input_data['market_segment_type'] = label_encoder.transform(input_data['market_segment_type'])
+    input_data['person_gender'] = label_encoder.transform(input_data['person_gender'])
+    input_data['previous_loan_defaults_on_file'] = label_encoder.transform(input_data['previous_loan_defaults_on_file'])
 
-    input_data = input_data.select_dtypes(include=[np.number])
+    education_order = ['High School', 'Associate', 'Bachelor', 'Master', 'Doctorate']
+    input_data['person_education'] = pd.Categorical(input_data['person_education'], categories=education_order, ordered=True).codes
 
-    input_data_scaled = scaler.transform(input_data)
-    
-    return input_data_scaled
+    input_data = pd.get_dummies(input_data, columns=['person_home_ownership', 'loan_intent'], drop_first=False)
 
-#interface streamlit
-st.title('Hotel Booking Prediction')
+    required_columns = best_model.get_booster().feature_names
+    for col in required_columns:
+        if col not in input_data.columns:
+            input_data[col] = 0
+    input_data = input_data[required_columns]
 
-st.write("""
+    return input_data
+
+# Interface streamlit
+st.set_page_config(page_title="hotel", page_icon="🏨", layout="centered")
+st.title("Hotel Booking App")
+
+st.markdown(""" 
 ### Masukkan informasi penginapan untuk memprediksi status booking.
 """)
 
@@ -59,22 +66,19 @@ no_of_special_requests = st.number_input('Jumlah Permintaan Khusus:', min_value=
 
 #DataFrame dari inputan pengguna
 input_data = pd.DataFrame({
-    'no_of_adults': [no_of_adults],
-    'no_of_children': [no_of_children],
-    'no_of_weekend_nights': [no_of_weekend_nights],
-    'no_of_week_nights': [no_of_week_nights],
-    'type_of_meal_plan': [type_of_meal_plan],
-    'room_type_reserved': [room_type_reserved],
-    'market_segment_type': [market_segment_type],
-    'lead_time': [lead_time],
-    'arrival_year': [arrival_year],
-    'arrival_month': [arrival_month],
-    'arrival_date': [arrival_date],
-    'repeated_guest': [repeated_guest],
-    'no_of_previous_cancellations': [no_of_previous_cancellations],
-    'no_of_previous_bookings_not_canceled': [no_of_previous_bookings_not_canceled],
-    'avg_price_per_room': [avg_price_per_room],
-    'no_of_special_requests': [no_of_special_requests]
+    'person_age': [no_of_adults],  #gantisesuai data yang relevan
+    'person_gender': ['male'],  #ganti sesuai input pengguna
+    'person_income': [50000],  #ganti sesuai data pengguna
+    'person_education': ['Bachelor'],  #ganti sesuai input pengguna
+    'previous_loan_defaults_on_file': ['No'],  #ganti sesuai input
+    'person_emp_exp': [5],  #ganti sesuai data pengguna
+    'person_home_ownership': ['Own'],  #ganti sesuai input pengguna
+    'loan_intent': ['PERSONAL'],  #ganti sesuai input pengguna
+    'loan_amnt': [20000],  #ganti sesuai input pengguna
+    'loan_int_rate': [5],  #ganti sesuai input
+    'cb_person_cred_hist_length': [10],  #ganti sesuai input
+    'credit_score': [700],  #ganti sesuai input pengguna
+    'loan_percent_income': [30]  #ganti sesuai input pengguna
 })
 
 #preprocess input data and make predictions
