@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-#inisialisasi Flask app
+#inisialisasi Flask app 
 app = Flask(__name__)
 
 #load model yang udah disave
